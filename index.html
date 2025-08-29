@@ -36,4 +36,209 @@
   .opt.wrong{border-color:rgba(239,107,107,.5); background:rgba(239,107,107,.06)}
   .meta{color:var(--muted); font-size:.9rem}
   .score{font-weight:700}
-  .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:#
+  .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:#1c2742; border:1px solid var(--line); color:var(--muted); font-size:.8rem}
+  details summary{cursor:pointer; color:var(--muted)}
+  code.k{background:#0e1628; padding:2px 6px; border-radius:6px; border:1px solid var(--line)}
+  footer{padding:20px; text-align:center; color:var(--muted); font-size:.85rem}
+  .hint{color:var(--muted); font-size:.9rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="badge">Matematica — Disequazioni irrazionali</div>
+  <h1>Quiz interattivo (20 domande a risposta multipla)</h1>
+  <p>Compila i dati, rispondi a tutte le domande, poi <strong>correggi</strong> e infine <strong>invia via email</strong> il resoconto.</p>
+</header>
+
+<div class="wrap">
+  <section class="card">
+    <div class="row">
+      <label class="input">Nome e cognome
+        <input type="text" id="nome" placeholder="Es. Rossi Giulia" autocomplete="name">
+      </label>
+      <label class="input">Classe/Sezione
+        <input type="text" id="classe" placeholder="Es. 3S / 4R / 2C Sportivo">
+      </label>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnCorreggi">Correggi il test</button>
+      <button id="btnInvia" disabled>Invia via email</button>
+      <button class="ghost" id="btnCopia" disabled>Copia resoconto</button>
+      <button class="ghost" id="btnReset">Reset</button>
+      <span class="meta" id="state"></span>
+    </div>
+    <p class="hint">Nota: l’invio usa <code class="k">mailto:</code> e apre il client email dello studente (Gmail/App). Se non si apre, usa “Copia resoconto”.</p>
+  </section>
+
+  <section id="quiz" class="card"></section>
+
+  <section id="risultato" class="card" style="display:none">
+    <h3>Risultato</h3>
+    <p class="meta">
+      <span class="score" id="scoreTxt"></span> —
+      <span id="esitoTxt"></span>
+    </p>
+    <details>
+      <summary>Mostra riepilogo risposte</summary>
+      <pre id="riepilogo" style="white-space:pre-wrap; line-height:1.4"></pre>
+    </details>
+  </section>
+</div>
+
+<footer>© 2025 — Quiz per uso didattico. Autocorrezione lato client, nessun dato salvato su server.</footer>
+
+<script>
+/** ======= Banca Dati Domande (20) ======= */
+const BANK = [
+  {text:"1) Risolvi: √(x − 1) ≥ 2.", options:["[1, +∞)","[5, +∞)","(-∞, 5)","(-∞, +∞)"], correct:1},
+  {text:"2) Risolvi: √(2x + 3) < 4.", options:["[−3/2, 13/2)","(-∞, 6.5)","x < 6.5 senza condizioni","[−3/2, +∞)"], correct:0},
+  {text:"3) Risolvi: √(5 − x) ≥ 3.", options:["(−∞, −4]","[−4, 5]","x ≤ 5","(−∞, 5]"], correct:0},
+  {text:"4) Risolvi: √(x² − 9) ≤ 4.", options:["[−5, 5]","(−∞, −3] ∪ [3, +∞)","[−5, −3] ∪ [3, 5]","(−5, 3)"], correct:2},
+  {text:"5) Risolvi: √(x + 4) > √(2x − 1).", options:["[1/2, 5)","(−4, 5)","(1/2, +∞)","[0, 5)"], correct:0},
+  {text:"6) Risolvi: √(x + 1) + √(x − 2) ≥ 4.", options:["[2, +∞)","[297/64, +∞)","(−∞, 297/64)","(4, +∞)"], correct:1},
+  {text:"7) Risolvi: √(2x − 1) ≤ x.", options:["[1/2, +∞)","(−∞, +∞)","(−∞, 1/2)","[0, +∞)"], correct:0},
+  {text:"8) Risolvi: √(x + 3) < x − 1.", options:["x > 1","x > (3 + √17)/2","x ≥ (3 + √17)/2","x > (√17 − 3)/2"], correct:1},
+  {text:"9) Risolvi: √x ≥ x − 2.", options:["[0, 4]","(−∞, 4]","[−2, 2]","[2, +∞)"], correct:0},
+  {text:"10) Risolvi: √(3 − x) > x.", options:["(−∞, (−1 + √13)/2)","(0, (−1 + √13)/2)","(−∞, 3]","[(−1 + √13)/2, 3)"], correct:0},
+  {text:"11) Risolvi: √(x + 2) ≥ √(3x − 1).", options:["x ≥ 1/3","[1/3, 3/2]","(−∞, 3/2]","[−2, +∞)"], correct:1},
+  {text:"12) Risolvi: √(x² − 4x + 4) < 3.", options:["(−1, 5)","[−1, 5]","(−∞, 5)","(−1, +∞)"], correct:0},
+  {text:"13) Risolvi: √(2 − x) + √(x + 1) ≤ 3.", options:["[−1, 2]","(−1, 2)","[−1, +∞)","(−∞, 2]"], correct:0},
+  {text:"14) Risolvi: √(x + 9) > 2x + 1.", options:["[−9, 1)","[−9, (−3 + √137)/8)","(−∞, (−3 + √137)/8)","x < 1"], correct:1},
+  {text:"15) Risolvi: √(x − 3) ≥ 2 − x.", options:["(−∞, 3)","[3, +∞)","(−∞, +∞)","(3, +∞)"], correct:1},
+  {text:"16) Risolvi: √(4x + 1) ≤ x + 3.", options:["x ≥ −1/4","(−1/4, +∞)","[0, +∞)","(−∞, +∞)"], correct:0},
+  {text:"17) Risolvi: √(x + 2) + √(4 − x) ≥ 3.", options:["[−2, 4]","[1 − (3/2)√3, 1 + (3/2)√3]","(−∞, +∞)","x ≥ 0"], correct:1},
+  {text:"18) Risolvi: 1/√(x − 1) > 2.", options:["(1, 5/4)","(0, 5/4)","(1, +∞)","x > 2"], correct:0},
+  {text:"19) Risolvi: √(2x + 5) ≥ x + 1.", options:["[−5/2, 2]","(−5/2, 2]","[−1, 2]","x ≥ −1"], correct:0},
+  {text:"20) Risolvi: √(x + 1) ≤ 3 − √(2 − x).", options:["[−1, 2]","(−1, 2)","(−∞, 2]","[−1, +∞)"], correct:0}
+];
+
+/** ======= Utility ======= */
+const $ = (sel, el=document)=>el.querySelector(sel);
+const quizEl = $("#quiz");
+const risultatoEl = $("#risultato");
+const scoreTxt = $("#scoreTxt");
+const esitoTxt = $("#esitoTxt");
+const riepilogoEl = $("#riepilogo");
+const stateEl = $("#state");
+const btnCorreggi = $("#btnCorreggi");
+const btnInvia = $("#btnInvia");
+const btnCopia = $("#btnCopia");
+const btnReset = $("#btnReset");
+const nomeEl = $("#nome");
+const classeEl = $("#classe");
+
+let rendered = [];
+let answers = new Map();
+let graded = false;
+
+function shuffle(a){
+  const arr = a.slice();
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function render(){
+  rendered = shuffle(BANK).map((q,i)=>({...q, uid:i}));
+  quizEl.innerHTML = "";
+  rendered.forEach((q, idx)=>{
+    const card = document.createElement("article");
+    card.className = "q";
+    const title = document.createElement("h3");
+    title.textContent = `${idx+1}. ${q.text.replace(/^\\d+\\)\\s*/, "")}`;
+    const opts = document.createElement("div"); opts.className="opts";
+    q.options.forEach((opt,k)=>{
+      const id = `q${idx}_opt${k}`;
+      const row = document.createElement("label");
+      row.className = "opt";
+      row.innerHTML = `
+        <input type="radio" name="q${idx}" id="${id}" value="${k}">
+        <div><strong>${"ABCD"[k]})</strong> ${opt}</div>
+      `;
+      row.addEventListener("change",()=>{
+        answers.set(idx,k);
+        stateEl.textContent = \`Risposte date: \${answers.size}/20\`;
+      });
+      opts.appendChild(row);
+    });
+    card.appendChild(title);
+    card.appendChild(opts);
+    quizEl.appendChild(card);
+  });
+  graded=false;
+  risultatoEl.style.display="none";
+  btnInvia.disabled=true;
+  btnCopia.disabled=true;
+  stateEl.textContent="Rispondi a tutte le domande (20/20).";
+}
+render();
+
+btnCorreggi.addEventListener("click",()=>{
+  if(answers.size!==20){alert("Rispondi a tutte le 20 domande prima di correggere.");return;}
+  quizEl.querySelectorAll(".opt").forEach(el=>el.classList.remove("correct","wrong"));
+  let right=0;
+  const lines=[];
+  rendered.forEach((q,idx)=>{
+    const chosen=answers.get(idx);
+    const ok=(chosen===q.correct);
+    if(ok) right++;
+    const opts=quizEl.querySelectorAll(\`input[name="q\${idx}"]\`);
+    opts.forEach((inp,k)=>{
+      const label=inp.closest(".opt");
+      if(k===q.correct) label.classList.add("correct");
+      if(inp.checked && k!==q.correct) label.classList.add("wrong");
+    });
+    const letterChosen="ABCD"[chosen];
+    const letterCorrect="ABCD"[q.correct];
+    lines.push(\`Q\${String(idx+1).padStart(2,"0")}: scelta \${letterChosen} \${ok?"✓":"✗"} (corretta \${letterCorrect})\`);
+  });
+  const score20=right;
+  const score10=(right/2).toFixed(1);
+  scoreTxt.textContent=\`Punteggio: \${score20}/20  (\${score10}/10)\`;
+  esitoTxt.textContent=right>=12?"Esito: positivo":"Esito: da rivedere";
+  riepilogoEl.textContent=lines.join("\\n");
+  risultatoEl.style.display="block";
+  btnInvia.disabled=false;
+  btnCopia.disabled=false;
+  graded=true;
+  stateEl.textContent=\`Correzione completata: \${score20}/20 (\${score10}/10).\`;
+});
+
+function buildReport(){
+  const when=new Date().toLocaleString("it-IT",{timeZone:"Europe/Rome"});
+  const nome=(nomeEl.value||"N/D").trim();
+  const classe=(classeEl.value||"N/D").trim();
+  let right=0;const lines=[];
+  rendered.forEach((q,idx)=>{
+    const chosen=answers.get(idx);
+    const ok=(chosen===q.correct);
+    if(ok) right++;
+    const lc="ABCD"[chosen??0];
+    const cc="ABCD"[q.correct];
+    lines.push(\`Q\${String(idx+1).padStart(2,"0")}: \${lc} \${ok?"✓":"✗"} (corretta \${cc})\`);
+  });
+  const score20=right; const score10=(right/2).toFixed(1);
+  const bodyLines=[
+    "TEST: Disequazioni irrazionali",
+    "Studente: "+nome,
+    "Classe: "+classe,
+    "Data/Ora: "+when+" (Europe/Rome)",
+    "Punteggio: "+score20+"/20  ("+score10+"/10)",
+    "",
+    "RISPOSTE:",
+    ...lines
+  ];
+  return {score20,score10,nome,classe,when,text:bodyLines.join("\\n")};
+}
+
+btnInvia.addEventListener("click",()=>{
+  if(!graded){alert("Prima correggi il test, poi invia il resoconto.");return;}
+  const rep=buildReport();
+  const subject=\`Test Disequazioni Irrazionali — \${rep.nome} — \${rep.when}\`;
+  const mailto=\`mailto:marco.enna1992@gmail.com?subject=\${encodeURIComponent(subject)}&body=\${encodeURIComponent(rep.text)}\`;
+  window.location.href=mailto;
+});
+
+btnCopia.addEventListener("click",
